@@ -8,6 +8,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/operationalinsights/armoperationalinsights"
+	"github.com/Azure/azure-sdk-for-go/services/operationalinsights/v1/operationalinsights"
 )
 
 var (
@@ -35,6 +36,20 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("operational insights get workspace:", *workspace.ID)
+
+	kqlQuery := `
+	AzureDiagnostics
+		| where Category == "kube-audit-admin"
+		| extend logs = parse_json(log_s)
+		| where logs.verb == "delete"
+		| project TimeGenerated, logs.kind, logs.level, logs.verb, logs
+	`
+
+	queryBody := operationalinsights.QueryBody{
+		Query: &kqlQuery,
+	}
+	queryClient := operationalinsights.NewQueryClient()
+	queryClient.Execute(ctx, *workspace.ID, queryBody)
 
 	workspaces, err := listWorkspace(ctx, cred)
 	if err != nil {
